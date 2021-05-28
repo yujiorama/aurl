@@ -35,6 +35,9 @@ func authCodeGrant(request *AurlExecution) (*string, error) {
 			"code":         {string(code)},
 			"redirect_uri": {request.Profile.RedirectURI},
 		}
+		if pkce := request.Profile.PKCE; pkce.Enabled {
+			values.Add("code_verifier", pkce.CodeVerifier)
+		}
 		return tokenRequest(values, request)
 	}
 }
@@ -91,6 +94,11 @@ func authorizationRequestURL(responseType string, request *AurlExecution, state 
 		"redirect_uri":  condVal(request.Profile.RedirectURI),
 		"scope":         condVal(strings.Join(strings.Split(request.Profile.Scope, ","), " ")),
 		"state":         condVal(state),
+	}
+	if pkce := request.Profile.PKCE; pkce.Enabled {
+		v.Add("code_challenge", pkce.CodeChallenge)
+		v.Add("code_challenge_method", pkce.CodeChallengeMethod)
+		v.Add("prompt", "none")
 	}
 	if strings.Contains(request.Profile.AuthorizationEndpoint, "?") {
 		buf.WriteByte('&')

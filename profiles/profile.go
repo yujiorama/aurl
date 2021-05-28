@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/classmethod/aurl/profiles/pkce"
 	"github.com/classmethod/aurl/utils"
 	version "github.com/classmethod/aurl/version"
 	ini "github.com/rakyll/goini"
@@ -22,6 +23,7 @@ type Profile struct {
 	Password              string
 	DefaultContentType    string
 	UserAgent             string
+	PKCE                  pkce.PKCE
 }
 
 const (
@@ -36,6 +38,7 @@ const (
 	SCOPES                     = "scopes"
 	USERNAME                   = "username"
 	PASSWORD                   = "password"
+	USE_PKCE                   = "use_pkce"
 	DEFAULT_CONTENT_TYPE       = "default_content_type"
 	DEFAULT_USER_AGENT         = "default_user_agent"
 	//SOURCE_PROFILE             = "source_profile"
@@ -48,8 +51,10 @@ const (
 
 func LoadProfile(profileName string) (Profile, error) {
 	if dict, err := loadConfig(); err != nil {
-		return Profile{}, err
+		return Profile{PKCE: pkce.Plain}, err
 	} else if p, ok := dict[profileName]; ok {
+		aPKCE, _ := pkce.New()
+		aPKCE.Enabled = getOrDefault(p, USE_PKCE, "") != ""
 		return Profile{
 			Name:                  profileName,
 			ClientId:              getOrDefault(p, CLIENT_ID, DEFAULT_CLIENT_ID),
@@ -63,6 +68,7 @@ func LoadProfile(profileName string) (Profile, error) {
 			Password:              getOrDefault(p, PASSWORD, ""),
 			DefaultContentType:    getOrDefault(p, DEFAULT_CONTENT_TYPE, ""),
 			UserAgent:             getOrDefault(p, DEFAULT_USER_AGENT, fmt.Sprintf("%s-%s", version.Name, version.Version)),
+			PKCE:                  aPKCE,
 		}, nil
 	} else {
 		return Profile{}, errors.New("Unknown profile: " + profileName)
