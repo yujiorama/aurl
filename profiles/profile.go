@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/classmethod/aurl/profiles/pkce"
+	"github.com/classmethod/aurl/profiles/sso"
 	"github.com/classmethod/aurl/utils"
 	version "github.com/classmethod/aurl/version"
 	ini "github.com/rakyll/goini"
@@ -24,23 +25,27 @@ type Profile struct {
 	DefaultContentType    string
 	UserAgent             string
 	PKCE                  pkce.PKCE
+	SSO                   sso.SSO
 }
 
 const (
 	DEFAULT_CONFIG_FILE = "~/.aurl/profiles"
 
-	CLIENT_ID                  = "client_id"
-	CLIENT_SECRET              = "client_secret"
-	AUTH_SERVER_AUTH_ENDPOINT  = "auth_server_auth_endpoint"
-	AUTH_SERVER_TOKEN_ENDPOINT = "auth_server_token_endpoint"
-	REDIRECT                   = "redirect"
-	GRANT_TYPE                 = "grant_type"
-	SCOPES                     = "scopes"
-	USERNAME                   = "username"
-	PASSWORD                   = "password"
-	USE_PKCE                   = "use_pkce"
-	DEFAULT_CONTENT_TYPE       = "default_content_type"
-	DEFAULT_USER_AGENT         = "default_user_agent"
+	CLIENT_ID                     = "client_id"
+	CLIENT_SECRET                 = "client_secret"
+	AUTH_SERVER_AUTH_ENDPOINT     = "auth_server_auth_endpoint"
+	AUTH_SERVER_TOKEN_ENDPOINT    = "auth_server_token_endpoint"
+	REDIRECT                      = "redirect"
+	GRANT_TYPE                    = "grant_type"
+	SCOPES                        = "scopes"
+	USERNAME                      = "username"
+	PASSWORD                      = "password"
+	USE_PKCE                      = "use_pkce"
+	SSO_ENDPOINT                  = "sso_endpoint"
+	SSO_CALLBACK_QUERY_PARAM_NAME = "sso_callback_query_param_name"
+	SSO_CALLBACK_URI              = "sso_callback_uri"
+	DEFAULT_CONTENT_TYPE          = "default_content_type"
+	DEFAULT_USER_AGENT            = "default_user_agent"
 	//SOURCE_PROFILE             = "source_profile"
 
 	DEFAULT_CLIENT_ID     = "aurl"
@@ -53,22 +58,22 @@ func LoadProfile(profileName string) (Profile, error) {
 	if dict, err := loadConfig(); err != nil {
 		return Profile{PKCE: pkce.Plain}, err
 	} else if p, ok := dict[profileName]; ok {
-		aPKCE, _ := pkce.New()
-		aPKCE.Enabled = getOrDefault(p, USE_PKCE, "") != ""
+		redirectURI := getOrDefault(p, REDIRECT, "http://localhost:8080/")
 		return Profile{
 			Name:                  profileName,
 			ClientId:              getOrDefault(p, CLIENT_ID, DEFAULT_CLIENT_ID),
 			ClientSecret:          getOrDefault(p, CLIENT_SECRET, DEFAULT_CLIENT_SECRET),
 			AuthorizationEndpoint: getOrDefault(p, AUTH_SERVER_AUTH_ENDPOINT, ""),
 			TokenEndpoint:         getOrDefault(p, AUTH_SERVER_TOKEN_ENDPOINT, ""),
-			RedirectURI:           getOrDefault(p, REDIRECT, ""),
+			RedirectURI:           redirectURI,
 			GrantType:             getOrDefault(p, GRANT_TYPE, DEFAULT_GRANT_TYPE),
 			Scope:                 getOrDefault(p, SCOPES, DEFAULT_SCOPES),
 			Username:              getOrDefault(p, USERNAME, ""),
 			Password:              getOrDefault(p, PASSWORD, ""),
 			DefaultContentType:    getOrDefault(p, DEFAULT_CONTENT_TYPE, ""),
 			UserAgent:             getOrDefault(p, DEFAULT_USER_AGENT, fmt.Sprintf("%s-%s", version.Name, version.Version)),
-			PKCE:                  aPKCE,
+			PKCE:                  pkce.New(getOrDefault(p, USE_PKCE, "false")),
+			SSO:                   sso.New(getOrDefault(p, SSO_ENDPOINT, ""), getOrDefault(p, SSO_CALLBACK_QUERY_PARAM_NAME, ""), getOrDefault(p, SSO_CALLBACK_URI, redirectURI)),
 		}, nil
 	} else {
 		return Profile{}, errors.New("Unknown profile: " + profileName)

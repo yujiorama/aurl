@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	"strconv"
 )
 
 var Plain PKCE
@@ -19,19 +20,27 @@ const (
 
 // PKCE represents a set of the PKCE parameters.
 type PKCE struct {
-	Enabled             bool
 	CodeChallenge       string
 	CodeChallengeMethod string
 	CodeVerifier        string
 }
 
 // New generates a parameters for S256.
-func New() (PKCE, error) {
+func New(usePKCE string) PKCE {
+	if use, err := strconv.ParseBool(usePKCE); err != nil || !use {
+		return Plain
+	}
+
 	b, err := random32()
 	if err != nil {
-		return Plain, fmt.Errorf("could not generate a random: %w", err)
+		return Plain
 	}
-	return computeS256(b), nil
+	aPKCE := computeS256(b)
+	return aPKCE
+}
+
+func (pkce *PKCE) Enabled() bool {
+	return pkce.CodeChallenge != ""
 }
 
 func random32() ([]byte, error) {
@@ -47,7 +56,6 @@ func computeS256(b []byte) PKCE {
 	s := sha256.New()
 	_, _ = s.Write([]byte(v))
 	return PKCE{
-		Enabled:             true,
 		CodeChallenge:       base64URLEncode(s.Sum(nil)),
 		CodeChallengeMethod: methodS256,
 		CodeVerifier:        v,
